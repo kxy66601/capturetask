@@ -1,27 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAPTURE Experiment - Timeline Retrieval Task</title>
-    
-    <!-- jsPsych v7 -->
-    <script src="https://unpkg.com/jspsych@7.3.4"></script>
-    <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" type="text/css" />
-    
+    <title>CAPTURE Experiment</title>
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <!-- Custom Styles -->
-    <link href="style.css" rel="stylesheet" type="text/css" />
-    
-    <!-- Custom Plugin -->
-    <script src="plugin-timeline-task.js"></script>
+
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at top, #1a1a2e 0%, #050505 100%);
+            --panel-bg: rgba(30, 30, 40, 0.4);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f8f9fa;
+            --text-muted: #a0a0b0;
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.4);
+            --glass-blur: blur(16px);
+            --font-main: 'Outfit', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .menu-container {
+            text-align: center;
+            padding: 60px 40px;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        .menu-container h1 {
+            font-size: 3rem;
+            font-weight: 600;
+            margin: 0 0 10px 0;
+            background: linear-gradient(90deg, #8b5cf6, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+        }
+
+        .menu-container .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 60px;
+        }
+
+        .task-cards {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .task-card {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 36px 32px;
+            flex: 1 1 260px;
+            max-width: 300px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .task-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--accent);
+            box-shadow: 0 16px 40px var(--accent-glow);
+        }
+
+        .task-card .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 18px;
+        }
+
+        .task-card h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.3rem;
+            font-weight: 500;
+        }
+
+        .task-card p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+    </style>
 </head>
+
 <body>
-    <!-- Custom Experiment Logic -->
-    <script src="app.js"></script>
+    <div class="menu-container">
+        <h1>CAPTURE</h1>
+        <p class="subtitle">Museum tour memory experiment</p>
+
+        <div class="task-cards">
+            <a href="task-recognition.html" class="task-card">
+                <div class="card-icon">🖼️</div>
+                <h2>Recognition Task</h2>
+                <p>Identify artworks from the exhibition and rate your observation time.</p>
+            </a>
+            <a href="task-timeline.html" class="task-card">
+                <div class="card-icon">🕐</div>
+                <h2>Timeline Task</h2>
+                <p>Place artworks on a timeline to reconstruct your tour sequence.</p>
+            </a>
+        </div>
+    </div>
 </body>
+
 </html>
