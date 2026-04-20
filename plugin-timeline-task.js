@@ -4,11 +4,15 @@ var jsPsychTimelineTask = (function (jspsych) {
   const info = {
     name: 'timeline-task',
     parameters: {
-      images: {
+      image: {
         type: jspsych.ParameterType.IMAGE,
-        array: true,
-        default: [],
-        description: 'Array of image paths to display in the photo bank.'
+        default: undefined,
+        description: 'The image to display.'
+      },
+      is_last_artwork: {
+        type: jspsych.ParameterType.BOOL,
+        default: false,
+        description: 'Whether this is the last artwork in the session.'
       },
       timeline_duration_minutes: {
         type: jspsych.ParameterType.INT,
@@ -42,23 +46,14 @@ var jsPsychTimelineTask = (function (jspsych) {
               <h1>Tour Memory Retrieval</h1>
               <p>Drag each artwork to the time you saw it. Estimate how long you analyzed it.</p>
             </div>
-            <button id="finish-btn" class="finish-btn" disabled>Finish Task</button>
+            <button id="finish-btn" class="finish-btn" disabled>${trial.is_last_artwork ? 'Complete Task' : 'Next Artwork'}</button>
           </div>
           
-          <div class="work-area">
-            <div class="photo-bank" id="photo-bank">
-      `;
-      
-      trial.images.forEach((imgSrc, index) => {
-        let imgId = `art-${index}`;
-        html += `
-          <div class="art-item" id="${imgId}" draggable="true" data-src="${imgSrc}">
-            <img src="${imgSrc}" draggable="false">
-          </div>
-        `;
-      });
-      
-      html += `
+          <div class="work-area single-image-work-area">
+            <div class="single-art-container" id="single-art-container">
+                <div class="art-item" id="art-target" draggable="true" data-src="${trial.image}">
+                  <img src="${trial.image}" draggable="false">
+                </div>
             </div>
             
             <div class="timeline-area">
@@ -105,7 +100,7 @@ var jsPsychTimelineTask = (function (jspsych) {
       display_element.innerHTML = html;
 
       // Setup DOM references
-      this.photoBank = display_element.querySelector('#photo-bank');
+      this.singleArtContainer = display_element.querySelector('#single-art-container');
       this.timelineContainer = display_element.querySelector('#timeline-track-container');
       this.dropzone = display_element.querySelector('#timeline-dropzone');
       this.tooltip = display_element.querySelector('#hover-tooltip');
@@ -119,7 +114,8 @@ var jsPsychTimelineTask = (function (jspsych) {
       this.modalSave = display_element.querySelector('#modal-save');
       this.modalCancel = display_element.querySelector('#modal-cancel');
 
-      this.numItemsRequired = trial.images.length;
+      this.numItemsRequired = 1;
+      this.startTime = performance.now();
       
       this.renderTicks(trial.timeline_duration_minutes);
       this.setupInteractionHandlers(trial.time_increment_seconds);
@@ -142,18 +138,18 @@ var jsPsychTimelineTask = (function (jspsych) {
     }
 
     setupInteractionHandlers(incrementSecs) {
-      // 1. Photo Bank Drag & Drop
-      const artItems = this.photoBank.querySelectorAll('.art-item');
-      artItems.forEach(item => {
-        item.addEventListener('dragstart', (e) => {
-          if (item.classList.contains('placed')) {
+      // 1. Single Image Drag & Drop
+      const artItem = this.singleArtContainer.querySelector('.art-item');
+      if (artItem) {
+        artItem.addEventListener('dragstart', (e) => {
+          if (artItem.classList.contains('placed')) {
             e.preventDefault();
             return;
           }
-          e.dataTransfer.setData('text/plain', item.id);
+          e.dataTransfer.setData('text/plain', artItem.id);
           e.dataTransfer.effectAllowed = 'copy';
         });
-      });
+      }
 
       // 2. Timeline Dropping mechanics
       this.dropzone.addEventListener('dragover', (e) => {
@@ -205,6 +201,10 @@ var jsPsychTimelineTask = (function (jspsych) {
         if (totalDurationSec === 0) {
           alert('Please enter a duration greater than 0.');
           return;
+        }
+
+        if (!this.firstDropRt) {
+            this.firstDropRt = Math.round(performance.now() - this.startTime);
         }
 
         this.savePlacedItem(totalDurationSec);
@@ -291,13 +291,14 @@ var jsPsychTimelineTask = (function (jspsych) {
 
     endTrial() {
       // Gather data
-      let responseData = [];
+      let responseData = null;
       this.placedItems.forEach((val) => {
-        responseData.push({
+        responseData = {
           image_id: val.id,
           timeline_position_sec: val.timeSec,
-          estimated_duration_sec: val.durationSec
-        });
+          estimated_duration_sec: val.durationSec,
+          rt_timeline: this.firstDropRt || Math.round(performance.now() - this.startTime)
+        };
       });
 
       // Clear DOM
@@ -305,7 +306,7 @@ var jsPsychTimelineTask = (function (jspsych) {
 
       // Return data
       this.jsPsych.finishTrial({
-        retrieval_data: responseData
+        timeline_data: responseData
       });
     }
   }

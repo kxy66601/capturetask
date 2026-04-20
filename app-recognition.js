@@ -5,25 +5,92 @@
 async function startExperiment() {
   const jsPsych = initJsPsych({
     on_finish: async function() {
-      const recognitionData = jsPsych.data.get()
-        .filter({ trial_type: 'recognition-task' })
-        .values();
+      // Gather data: we have recognition tasks, and some timeline tasks.
+      // We will loop through the recognition tasks, and for those that are recognized,
+      // we'll get the following timeline task data and combine them.
+      const rawData = jsPsych.data.get().values();
+      
+      const combinedData = [];
+      let currentRecData = null;
+      
+      for (const trial of rawData) {
+        if (trial.trial_type === 'recognition-task') {
+          if (currentRecData) {
+              combinedData.push(currentRecData); // Push previous if there was no timeline data for it
+          }
+          currentRecData = {
+              image_id: trial.image_id,
+              recognized: trial.recognized,
+              relative_duration: trial.relative_duration,
+              rt_recognition: trial.rt_recognition,
+              rt_phase2: trial.rt_phase2
+          };
+          if (!trial.recognized) {
+             combinedData.push(currentRecData);
+             currentRecData = null;
+          }
+        } else if (trial.trial_type === 'timeline-task') {
+          if (currentRecData && trial.timeline_data) {
+             currentRecData.timeline_position_sec = trial.timeline_data.timeline_position_sec;
+             currentRecData.estimated_duration_sec = trial.timeline_data.estimated_duration_sec;
+             currentRecData.rt_timeline = trial.timeline_data.rt_timeline;
+             combinedData.push(currentRecData);
+             currentRecData = null;
+          }
+        }
+      }
+      if (currentRecData) {
+          combinedData.push(currentRecData); // Catch any remaining
+      }
 
       // 1. Generate unique participant ID
       const participantId = 'P-' + Math.random().toString(36).substr(2, 9).toUpperCase();
 
-      // 2. Log data to Supabase
+      // 2. Log data to Supabase (Flat Row format)
       document.body.innerHTML = '<div class="summary-container"><p>Saving results to database...</p></div>';
+
+      const flatRows = combinedData.map(item => ({
+        participant_id: participantId,
+        task_type: 'combined',
+        image_id: item.image_id,
+        recognized: item.recognized,
+        relative_duration: item.relative_duration || null,
+        rt_recognition: item.rt_recognition || null,
+        rt_phase2: item.rt_phase2 || null,
+        timeline_position_sec: item.timeline_position_sec || null,
+        estimated_duration_sec: item.estimated_duration_sec || null,
+        rt_timeline: item.rt_timeline || null
+      }));
 
       const { error } = await supabaseClient
         .from('results')
         .insert([
           { 
             participant_id: participantId, 
-            task_type: 'recognition', 
-            response_data: recognitionData 
+            task_type: 'combined', 
+            response_data: combinedData 
           }
         ]);
+
+      // Create CSV Download Logic
+      const csvHeaders = ['participant_id', 'task_type', 'image_id', 'recognized', 'relative_duration', 'rt_recognition', 'rt_phase2', 'timeline_position_sec', 'estimated_duration_sec', 'rt_timeline'];
+      const csvRows = [csvHeaders.join(',')];
+      flatRows.forEach(row => {
+        csvRows.push(csvHeaders.map(h => {
+          let val = row[h];
+          return (val === null || val === undefined) ? '' : val;
+        }).join(','));
+      });
+      const csvString = csvRows.join('\n');
+      
+      window.downloadCSV = function() {
+        const blob = new Blob([csvString], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('href', url);
+        a.setAttribute('download', participantId + '_capture_data.csv');
+        a.click();
+      };
 
       if (error) {
         console.error('Error saving data:', error);
@@ -41,13 +108,18 @@ async function startExperiment() {
                 <tr>
                   <th>Artwork</th>
                   <th>Recognized?</th>
-                  <th>Estimated Duration</th>
+                  <th>Observation RT (s)</th>
+                  <th>Timeline Placement</th>
                 </tr>
               </thead>
               <tbody>
       `;
 
-      recognitionData.forEach((item, index) => {
+      combinedData.forEach((item, index) => {
+        let timelineInfo = item.recognized ? 
+           (item.timeline_position_sec != null ? `Placed at ${Math.floor(item.timeline_position_sec/60)}m ${item.timeline_position_sec%60}s` : 'Missed') 
+           : 'N/A';
+           
         summaryHtml += `
           <tr>
             <td>
@@ -57,7 +129,8 @@ async function startExperiment() {
               </div>
             </td>
             <td>${item.recognized ? 'Yes' : 'No'}</td>
-            <td>${item.relative_duration ? item.relative_duration : 'N/A'}</td>
+            <td>${item.rt_recognition ? Math.round(item.rt_recognition/10)/100 : 'N/A'}</td>
+            <td>${timelineInfo}</td>
           </tr>
         `;
       });
@@ -66,7 +139,8 @@ async function startExperiment() {
               </tbody>
             </table>
           </div>
-          <div style="margin-top:20px;">
+          <div style="margin-top:20px; display: flex; gap: 15px; justify-content: center;">
+            <button onclick="downloadCSV()" class="btn btn-primary">Download CSV locally</button>
             <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">Return to Menu</a>
           </div>
         </div>
@@ -97,15 +171,39 @@ async function startExperiment() {
   }
 
   // Create timeline based on fetched artworks
-  const timeline = artworks.map(art => {
-    return {
+  const mainTimeline = [];
+  
+  artworks.forEach((art, index) => {
+    const isLast = (index === artworks.length - 1);
+    
+    const recognition_trial = {
       type: jsPsychRecognitionTask,
       image: art.image_url
     };
+    
+    const timeline_trial = {
+      type: jsPsychTimelineTask,
+      image: art.image_url,
+      is_last_artwork: isLast
+    };
+    
+    const if_node = {
+      timeline: [timeline_trial],
+      conditional_function: function() {
+        const lastData = jsPsych.data.get().last(1).values()[0];
+        if (lastData && lastData.recognized) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+    };
+    
+    mainTimeline.push(recognition_trial, if_node);
   });
 
   // Start the experiment
-  jsPsych.run(timeline);
+  jsPsych.run(mainTimeline);
 }
 
 // Global invocation

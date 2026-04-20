@@ -95,23 +95,17 @@ body {
   position: relative;
 }
 
-/* Photo Bank */
-.photo-bank {
+/* Single Image Work Area */
+.single-image-work-area {
+  /* No additional flex alignments needed to preserve full width stretch */
+}
+
+.single-art-container {
   flex: 1;
-  padding: 30px 40px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  overflow-y: auto;
-  align-items: flex-start;
-  align-content: flex-start;
-}
-.photo-bank::-webkit-scrollbar {
-  width: 8px;
-}
-.photo-bank::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .art-item {

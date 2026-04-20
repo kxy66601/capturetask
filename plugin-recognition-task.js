@@ -61,13 +61,22 @@ var jsPsychRecognitionTask = (function (jspsych) {
       this.durationBtns = display_element.querySelectorAll('.btn-duration');
 
       // Bind events
-      this.btnNo.addEventListener('click', () => this.endTrial(false, null));
-      this.btnYes.addEventListener('click', () => this.showPhase2());
+      this.startTime = performance.now();
+      
+      this.btnNo.addEventListener('click', () => {
+        const rt = Math.round(performance.now() - this.startTime);
+        this.endTrial(false, null, rt, null);
+      });
+      this.btnYes.addEventListener('click', () => {
+        this.rt_recognition = Math.round(performance.now() - this.startTime);
+        this.showPhase2();
+      });
 
       this.durationBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
+          const dt = Math.round(performance.now() - this.phase2StartTime);
           const durationValue = e.target.getAttribute('data-duration');
-          this.endTrial(true, durationValue);
+          this.endTrial(true, durationValue, this.rt_recognition, dt);
         });
       });
     }
@@ -82,16 +91,19 @@ var jsPsychRecognitionTask = (function (jspsych) {
         // Small delay to allow display:block to apply before adding fade-in
         setTimeout(() => {
           this.phase2.classList.add('fade-in');
+          this.phase2StartTime = performance.now();
         }, 50);
       }, 300); // 300ms matches CSS transition duration
     }
 
-    endTrial(recognized, duration) {
+    endTrial(recognized, duration, rt_recognition, rt_phase2) {
       // Gather data
       const responseData = {
         image_id: this.trial.image,
         recognized: recognized,
-        relative_duration: duration
+        relative_duration: duration,
+        rt_recognition: rt_recognition,
+        rt_phase2: rt_phase2
       };
 
       // Clear DOM
