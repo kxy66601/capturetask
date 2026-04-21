@@ -44,14 +44,14 @@ var jsPsychTimelineTask = (function (jspsych) {
           <div class="task-header">
             <div>
               <h1>Tour Memory Retrieval</h1>
-              <p>Drag each artwork to the time you saw it. Estimate how long you analyzed it.</p>
+              <p>Click on the timeline to indicate when you saw this artwork.</p>
             </div>
             <button id="finish-btn" class="finish-btn" disabled>${trial.is_last_artwork ? 'Complete Task' : 'Next Artwork'}</button>
           </div>
           
           <div class="work-area single-image-work-area">
             <div class="single-art-container" id="single-art-container">
-                <div class="art-item" id="art-target" draggable="true" data-src="${trial.image}">
+                <div class="art-item" id="art-target" data-src="${trial.image}">
                   <img src="${trial.image}" draggable="false">
                 </div>
             </div>
@@ -62,35 +62,6 @@ var jsPsychTimelineTask = (function (jspsych) {
                 <div class="timeline-ticks" id="timeline-ticks"></div>
                 <div class="timeline-dropzone" id="timeline-dropzone"></div>
                 <div id="hover-tooltip">00:00</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Duration Modal -->
-        <div class="modal-overlay" id="duration-modal">
-          <div class="modal-content">
-            <div class="modal-artwork">
-              <img id="modal-img-preview" src="" alt="Artwork Preview">
-            </div>
-            <div class="modal-form">
-              <h2>Duration of observation</h2>
-              <p>How long did you spend looking at this art piece during your tour?</p>
-              
-              <div class="duration-inputs">
-                <div class="input-group">
-                  <label for="input-min">Minutes</label>
-                  <input type="number" id="input-min" min="0" max="45" value="0">
-                </div>
-                <div class="input-group">
-                  <label for="input-sec">Seconds</label>
-                  <input type="number" id="input-sec" min="0" max="59" value="0">
-                </div>
-              </div>
-              
-              <div class="modal-actions">
-                <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
-                <button class="btn btn-primary" id="modal-save">Save Marker</button>
               </div>
             </div>
           </div>
@@ -106,13 +77,6 @@ var jsPsychTimelineTask = (function (jspsych) {
       this.tooltip = display_element.querySelector('#hover-tooltip');
       this.ticksContainer = display_element.querySelector('#timeline-ticks');
       this.finishBtn = display_element.querySelector('#finish-btn');
-      
-      this.modal = display_element.querySelector('#duration-modal');
-      this.modalImg = display_element.querySelector('#modal-img-preview');
-      this.inputMin = display_element.querySelector('#input-min');
-      this.inputSec = display_element.querySelector('#input-sec');
-      this.modalSave = display_element.querySelector('#modal-save');
-      this.modalCancel = display_element.querySelector('#modal-cancel');
 
       this.numItemsRequired = 1;
       this.startTime = performance.now();
@@ -138,28 +102,10 @@ var jsPsychTimelineTask = (function (jspsych) {
     }
 
     setupInteractionHandlers(incrementSecs) {
-      // 1. Single Image Drag & Drop
-      const artItem = this.singleArtContainer.querySelector('.art-item');
-      if (artItem) {
-        artItem.addEventListener('dragstart', (e) => {
-          if (artItem.classList.contains('placed')) {
-            e.preventDefault();
-            return;
-          }
-          e.dataTransfer.setData('text/plain', artItem.id);
-          e.dataTransfer.effectAllowed = 'copy';
-        });
-      }
-
-      // 2. Timeline Dropping mechanics
-      this.dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault(); // Necessary to allow dropping
-        e.dataTransfer.dropEffect = 'copy';
-        
-        // Show Tooltip with time
+      // Timeline Dropzone Hover & Click mechanics
+      this.dropzone.addEventListener('mousemove', (e) => {
         let rawPercent = e.offsetX / this.dropzone.offsetWidth;
-        if(rawPercent < 0) rawPercent = 0;
-        if(rawPercent > 1) rawPercent = 1;
+        if(rawPercent < 0) rawPercent = 0; if(rawPercent > 1) rawPercent = 1;
         
         let seconds = rawPercent * this.totalSecs;
         let snappedSecs = Math.round(seconds / incrementSecs) * incrementSecs;
@@ -169,89 +115,31 @@ var jsPsychTimelineTask = (function (jspsych) {
         this.tooltip.innerText = this.formatTime(snappedSecs);
       });
 
-      this.dropzone.addEventListener('dragleave', () => {
+      this.dropzone.addEventListener('mouseleave', () => {
         this.tooltip.style.opacity = '0';
       });
 
-      this.dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        this.tooltip.style.opacity = '0';
-        
-        const itemId = e.dataTransfer.getData('text/plain');
-        if (!itemId) return;
-        
-        const sourceElem = document.getElementById(itemId);
-        if (!sourceElem || sourceElem.classList.contains('placed')) return;
-
+      this.dropzone.addEventListener('click', (e) => {
         let rawPercent = e.offsetX / this.dropzone.offsetWidth;
         if(rawPercent < 0) rawPercent = 0; if(rawPercent > 1) rawPercent = 1;
         
         let seconds = rawPercent * this.totalSecs;
         let snappedSecs = Math.round(seconds / incrementSecs) * incrementSecs;
-
-        this.openModalFor(itemId, sourceElem.dataset.src, snappedSecs, false);
-      });
-
-      // 3. Modal Handlers
-      this.modalSave.addEventListener('click', () => {
-        const min = parseInt(this.inputMin.value) || 0;
-        const sec = parseInt(this.inputSec.value) || 0;
-        const totalDurationSec = (min * 60) + sec;
         
-        if (totalDurationSec === 0) {
-          alert('Please enter a duration greater than 0.');
-          return;
-        }
+        const sourceElem = this.singleArtContainer.querySelector('.art-item');
+        const itemId = sourceElem.id;
 
         if (!this.firstDropRt) {
             this.firstDropRt = Math.round(performance.now() - this.startTime);
         }
 
-        this.savePlacedItem(totalDurationSec);
-        this.closeModal();
-      });
+        // Remove existing marker if any
+        const existingMarker = this.timelineContainer.querySelector('.timeline-marker');
+        if (existingMarker) {
+            existingMarker.remove();
+        }
 
-      this.modalCancel.addEventListener('click', () => {
-        this.closeModal();
-      });
-    }
-
-    formatTime(totSeconds) {
-      let m = Math.floor(totSeconds / 60);
-      let s = Math.floor(totSeconds % 60);
-      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    }
-
-    openModalFor(itemId, imgSrc, timeSec, isEditing) {
-      this.activeItem = { id: itemId, timeSec: timeSec, isEditing: isEditing };
-      this.modalImg.src = imgSrc;
-      
-      if (isEditing && this.placedItems.has(itemId)) {
-        let existing = this.placedItems.get(itemId);
-        this.activeItem.timeSec = existing.timeSec; // Keep original time unless we allow drag edit
-        this.inputMin.value = Math.floor(existing.durationSec / 60);
-        this.inputSec.value = existing.durationSec % 60;
-      } else {
-        this.inputMin.value = 0;
-        this.inputSec.value = 0;
-      }
-      
-      this.modal.classList.add('active');
-      this.inputMin.focus();
-    }
-
-    closeModal() {
-      this.modal.classList.remove('active');
-      this.activeItem = null;
-    }
-
-    savePlacedItem(durationSec) {
-      const { id, timeSec, isEditing } = this.activeItem;
-      const percent = (timeSec / this.totalSecs) * 100;
-      const sourceElem = document.getElementById(id);
-      
-      if (!isEditing) {
-        // Create marker
+        const percent = (snappedSecs / this.totalSecs) * 100;
         const marker = document.createElement('div');
         marker.className = 'timeline-marker';
         marker.style.left = `${percent}%`;
@@ -261,26 +149,24 @@ var jsPsychTimelineTask = (function (jspsych) {
         img.draggable = false;
         marker.appendChild(img);
         
-        marker.addEventListener('click', () => {
-          this.openModalFor(id, sourceElem.dataset.src, timeSec, true);
-        });
-
         this.timelineContainer.appendChild(marker);
         sourceElem.classList.add('placed');
         
-        this.placedItems.set(id, {
-          id: id,
+        this.placedItems.set(itemId, {
+          id: itemId,
           markerElement: marker,
-          timeSec: timeSec,
-          durationSec: durationSec
+          timeSec: snappedSecs,
+          durationSec: null
         });
-      } else {
-        // Update existing
-        let existing = this.placedItems.get(id);
-        existing.durationSec = durationSec;
-      }
 
-      this.checkCompletion();
+        this.checkCompletion();
+      });
+    }
+
+    formatTime(totSeconds) {
+      let m = Math.floor(totSeconds / 60);
+      let s = Math.floor(totSeconds % 60);
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
     checkCompletion() {
