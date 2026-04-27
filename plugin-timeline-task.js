@@ -42,8 +42,7 @@ var jsPsychTimelineTask = (function (jspsych) {
       let html = `
         <div class="timeline-task-container">
           <div class="task-header">
-            <div>
-              <h1>Tour Memory Retrieval</h1>
+            <div class="header-titles">
               <p>Click on the timeline to indicate when you saw this artwork.</p>
             </div>
             <button id="finish-btn" class="finish-btn" disabled>${trial.is_last_artwork ? 'Complete Task' : 'Next Artwork'}</button>

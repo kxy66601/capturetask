@@ -116,7 +116,7 @@ body {
 
 .question-container h2 {
   margin: 0 0 25px 0;
-  font-size: 1.4rem;
+  font-size: 0.49rem;
   font-weight: 500;
   line-height: 1.4;
   color: var(--text-main);
@@ -133,7 +133,7 @@ body {
 .btn {
   padding: 14px 32px;
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 0.77rem;
   font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--border-color);
@@ -158,14 +158,14 @@ body {
   min-width: 120px;
 }
 
-#btn-yes:hover {
+.btn-choice[data-type="yes"]:hover {
   border-color: var(--yes-color);
   background: rgba(52, 211, 153, 0.1);
   color: var(--yes-color);
   box-shadow: 0 0 15px rgba(52, 211, 153, 0.2);
 }
 
-#btn-no:hover {
+.btn-choice[data-type="no"]:hover {
   border-color: var(--no-color);
   background: rgba(248, 113, 113, 0.1);
   color: var(--no-color);
@@ -174,17 +174,17 @@ body {
 
 .duration-group {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
 }
 
 .btn-duration {
-  font-size: 1rem;
-  padding: 12px 20px;
-  flex: none;
-  width: 100%;
-  max-width: 300px;
+  font-size: 0.7rem;
+  padding: 12px 5px;
+  flex: 1;
   text-align: center;
 }
 
@@ -207,7 +207,7 @@ body {
 }
 
 .summary-container h1 {
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   margin-bottom: 5px;
   background: -webkit-linear-gradient(0deg, #8b5cf6, #3b82f6);
   -webkit-background-clip: text;
@@ -216,7 +216,7 @@ body {
 
 .summary-container p {
   color: var(--text-muted);
-  font-size: 1.1rem;
+  font-size: 0.77rem;
   margin-bottom: 40px;
 }
 
@@ -249,7 +249,7 @@ body {
   color: var(--text-muted);
   font-weight: 500;
   text-transform: uppercase;
-  font-size: 0.85rem;
+  font-size: 0.595rem;
   letter-spacing: 1px;
 }
 

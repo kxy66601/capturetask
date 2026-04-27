@@ -32,13 +32,15 @@ var jsPsychRecognitionTask = (function (jspsych) {
             <div class="question-container" id="phase1-container">
               <h2>Was this artwork part of the exhibition?</h2>
               <div class="button-group">
-                <button class="btn btn-choice" id="btn-no">No</button>
-                <button class="btn btn-choice btn-yes" id="btn-yes">Yes</button>
+                <button class="btn btn-choice" data-type="yes" data-choice="Definitely yes">Definitely yes</button>
+                <button class="btn btn-choice" data-type="yes" data-choice="Maybe yes">Maybe yes</button>
+                <button class="btn btn-choice" data-type="no" data-choice="Maybe no">Maybe no</button>
+                <button class="btn btn-choice" data-type="no" data-choice="Definitely no">Definitely no</button>
               </div>
             </div>
 
             <div class="question-container hidden" id="phase2-container">
-              <h2>How much time did you spend looking at this artwork relative to the average amount of time spent on each artwork across the entire exhibition period?</h2>
+              <h2 style="font-size: 11.2px;">How much time did you spend looking at this artwork relative to the average amount of time spent on each artwork across the entire exhibition period?</h2>
               <div class="button-group duration-group">
                 <button class="btn btn-duration" data-duration="Much less">Much less</button>
                 <button class="btn btn-duration" data-duration="Little less">Little less</button>
@@ -54,8 +56,7 @@ var jsPsychRecognitionTask = (function (jspsych) {
       display_element.innerHTML = html;
 
       // Setup DOM references
-      this.btnYes = display_element.querySelector('#btn-yes');
-      this.btnNo = display_element.querySelector('#btn-no');
+      this.choiceBtns = display_element.querySelectorAll('.btn-choice');
       this.phase1 = display_element.querySelector('#phase1-container');
       this.phase2 = display_element.querySelector('#phase2-container');
       this.durationBtns = display_element.querySelectorAll('.btn-duration');
@@ -63,20 +64,24 @@ var jsPsychRecognitionTask = (function (jspsych) {
       // Bind events
       this.startTime = performance.now();
       
-      this.btnNo.addEventListener('click', () => {
-        const rt = Math.round(performance.now() - this.startTime);
-        this.endTrial(false, null, rt, null);
-      });
-      this.btnYes.addEventListener('click', () => {
-        this.rt_recognition = Math.round(performance.now() - this.startTime);
-        this.showPhase2();
+      this.choiceBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          this.rt_recognition = Math.round(performance.now() - this.startTime);
+          this.recognition_confidence = e.target.getAttribute('data-choice');
+          const isYes = this.recognition_confidence.toLowerCase().includes('yes');
+          if (isYes) {
+            this.showPhase2();
+          } else {
+            this.endTrial(false, this.recognition_confidence, null, this.rt_recognition, null);
+          }
+        });
       });
 
       this.durationBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
           const dt = Math.round(performance.now() - this.phase2StartTime);
           const durationValue = e.target.getAttribute('data-duration');
-          this.endTrial(true, durationValue, this.rt_recognition, dt);
+          this.endTrial(true, this.recognition_confidence, durationValue, this.rt_recognition, dt);
         });
       });
     }
@@ -96,11 +101,12 @@ var jsPsychRecognitionTask = (function (jspsych) {
       }, 300); // 300ms matches CSS transition duration
     }
 
-    endTrial(recognized, duration, rt_recognition, rt_phase2) {
+    endTrial(recognized, confidence, duration, rt_recognition, rt_phase2) {
       // Gather data
       const responseData = {
         image_id: this.trial.image,
         recognized: recognized,
+        recognition_confidence: confidence,
         relative_duration: duration,
         rt_recognition: rt_recognition,
         rt_phase2: rt_phase2
