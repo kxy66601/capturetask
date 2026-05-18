@@ -13,15 +13,8 @@ async function startExperiment() {
       // 2. Log data to Supabase
       document.body.innerHTML = '<div class="summary-container"><p>Saving results to database...</p></div>';
       
-      const { error } = await supabaseClient
-        .from('results')
-        .insert([
-          { 
-            participant_id: participantId, 
-            task_type: 'timeline', 
-            response_data: trialData 
-          }
-        ]);
+      // Supabase saving disabled for local mode
+      const error = null;
 
       if (error) {
         console.error('Error saving data:', error);
@@ -82,25 +75,14 @@ async function startExperiment() {
     }
   });
 
-  // 4. Fetch Artworks from Supabase
-  document.body.innerHTML = '<div class="summary-container"><p>Loading artworks from database...</p></div>';
-  
-  const { data: artworks, error } = await supabaseClient
-    .from('artworks')
-    .select('*')
-    .order('id', { ascending: true });
-
-  if (error || !artworks || artworks.length === 0) {
-    console.error('Error fetching artworks:', error);
-    document.body.innerHTML = `
-      <div class="summary-container">
-        <h1>Error</h1>
-        <p>Could not load artworks from Supabase. Ensure your 'artworks' table exists and is public.</p>
-        <a href="index.html" class="btn btn-secondary">Back to Menu</a>
-      </div>
-    `;
-    return;
-  }
+  // 4. Local Artworks (Replacing Supabase)
+  const artworks = [
+    { id: 1, image_url: 'assets/sample-art.png', title: 'Local Art 1' },
+    { id: 2, image_url: 'assets/sample-art.png', title: 'Local Art 2' },
+    { id: 3, image_url: 'assets/sample-art.png', title: 'Local Art 3' },
+    { id: 4, image_url: 'assets/sample-art.png', title: 'Local Art 4' },
+    { id: 5, image_url: 'assets/sample-art.png', title: 'Local Art 5' }
+  ];
 
   // Map Supabase data to the format expected by the plugin
   // We pass the URL as the IMAGE parameter

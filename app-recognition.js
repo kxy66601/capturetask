@@ -64,15 +64,8 @@ async function startExperiment() {
         rt_timeline: item.rt_timeline || null
       }));
 
-      const { error } = await supabaseClient
-        .from('results')
-        .insert([
-          {
-            participant_id: participantId,
-            task_type: 'combined',
-            response_data: combinedData
-          }
-        ]);
+      // Supabase saving disabled for local mode
+      const error = null;
 
       // Create CSV Download Logic
       const csvHeaders = ['participant_id', 'task_type', 'image_id', 'recognized', 'recognition_confidence', 'relative_duration', 'rt_recognition', 'rt_phase2', 'timeline_position_sec', 'estimated_duration_sec', 'rt_timeline'];
@@ -118,25 +111,14 @@ async function startExperiment() {
     }
   });
 
-  // 4. Fetch Artworks from Supabase
-  document.body.innerHTML = '<div class="summary-container"><p>Loading artworks from database...</p></div>';
-
-  const { data: artworks, error } = await supabaseClient
-    .from('artworks')
-    .select('*')
-    .order('id', { ascending: true });
-
-  if (error || !artworks || artworks.length === 0) {
-    console.error('Error fetching artworks:', error);
-    document.body.innerHTML = `
-      <div class="summary-container">
-        <h1>Error</h1>
-        <p>Could not load artworks from Supabase. Ensure your 'artworks' table exists and is public.</p>
-        <a href="index.html" class="btn btn-secondary">Back to Menu</a>
-      </div>
-    `;
-    return;
-  }
+  // 4. Local Artworks (Replacing Supabase)
+  const artworks = [
+    { id: 1, image_url: 'assets/sample-art.png', title: 'Local Art 1' },
+    { id: 2, image_url: 'assets/sample-art.png', title: 'Local Art 2' },
+    { id: 3, image_url: 'assets/sample-art.png', title: 'Local Art 3' },
+    { id: 4, image_url: 'assets/sample-art.png', title: 'Local Art 4' },
+    { id: 5, image_url: 'assets/sample-art.png', title: 'Local Art 5' }
+  ];
 
   // Create timeline based on fetched artworks
   const mainTimeline = [];
