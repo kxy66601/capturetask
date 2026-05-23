@@ -1,15 +1,15 @@
 :root {
-  --bg-color: #050505;
-  --bg-gradient: radial-gradient(circle at top, #1a1a2e 0%, #050505 100%);
-  --panel-bg: rgba(30, 30, 40, 0.4);
-  --border-color: rgba(255, 255, 255, 0.08);
-  --text-main: #f8f9fa;
-  --text-muted: #a0a0b0;
-  --accent: #8b5cf6;
-  --accent-glow: rgba(139, 92, 246, 0.4);
-  --timeline-bg: rgba(20, 20, 25, 0.8);
-  --marker-color: #fca5a5;
-  --glass-blur: blur(16px);
+  --bg-color: #ffffff;
+  --bg-gradient: #ffffff;
+  --panel-bg: #fdfdfd;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --text-main: #18181b;
+  --text-muted: #71717a;
+  --accent: #7c3aed;
+  --accent-glow: rgba(124, 58, 237, 0.15);
+  --timeline-bg: #f4f4f5;
+  --marker-color: #ef4444;
+  --glass-blur: none;
   --font-main: 'Outfit', sans-serif;
 }
 
@@ -71,7 +71,7 @@ body {
 }
 .task-header p {
   margin: 0;
-  font-size: 0.63rem;
+  font-size: 1.1rem;
   color: var(--text-muted);
 }
 .finish-btn {
@@ -122,16 +122,12 @@ body {
 }
 
 .art-item {
-  width: 300px;
-  height: 300px;
-  background-color: #2a2a35;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
+  width: 250px;
+  height: 250px;
   cursor: grab;
   position: relative;
   overflow: hidden;
   transition: transform 0.2s;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 .art-item:hover {
   transform: translateY(-2px) scale(1.05);
@@ -250,7 +246,7 @@ body {
   z-index: 6;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  box-shadow: none;
   transition: transform 0.2s, z-index 0s;
 }
 .timeline-marker:hover {

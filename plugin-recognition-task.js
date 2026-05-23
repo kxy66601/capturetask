@@ -8,6 +8,11 @@ var jsPsychRecognitionTask = (function (jspsych) {
         type: jspsych.ParameterType.IMAGE,
         default: undefined,
         description: 'The image to be displayed.'
+      },
+      image_filter: {
+        type: jspsych.ParameterType.STRING,
+        default: 'none',
+        description: 'CSS filter to apply to the image.'
       }
     }
   };
@@ -25,28 +30,28 @@ var jsPsychRecognitionTask = (function (jspsych) {
       let html = `
         <div class="recognition-task-container">
           <div class="artwork-display">
-            <img src="${trial.image}" id="recognition-image" draggable="false">
+            <img src="${trial.image}" id="recognition-image" draggable="false" style="filter: ${trial.image_filter};">
           </div>
           
           <div class="interaction-area" id="interaction-area">
             <div class="question-container" id="phase1-container">
               <h2>Was this artwork part of the exhibition?</h2>
               <div class="button-group">
-                <button class="btn btn-choice" data-type="yes" data-choice="Definitely yes">Definitely yes</button>
-                <button class="btn btn-choice" data-type="yes" data-choice="Maybe yes">Maybe yes</button>
-                <button class="btn btn-choice" data-type="no" data-choice="Maybe no">Maybe no</button>
                 <button class="btn btn-choice" data-type="no" data-choice="Definitely no">Definitely no</button>
+                <button class="btn btn-choice" data-type="no" data-choice="Maybe no">Maybe no</button>
+                <button class="btn btn-choice" data-type="yes" data-choice="Maybe yes">Maybe yes</button>
+                <button class="btn btn-choice" data-type="yes" data-choice="Definitely yes">Definitely yes</button>
               </div>
             </div>
 
             <div class="question-container hidden" id="phase2-container">
-              <h2 style="font-size: 11.2px;">How much time did you spend looking at this artwork relative to the average amount of time spent on each artwork across the entire exhibition period?</h2>
+              <h2 style="font-size: 16px;">How much time did you spend looking at this artwork relative to the average amount of time spent on each artwork during the tour?</h2>
               <div class="button-group duration-group">
                 <button class="btn btn-duration" data-duration="Much less">Much less</button>
                 <button class="btn btn-duration" data-duration="Little less">Little less</button>
-                <button class="btn btn-duration" data-duration="About average">About average</button>
-                <button class="btn btn-duration" data-duration="Little longer">Little longer</button>
-                <button class="btn btn-duration" data-duration="Much longer">Much longer</button>
+                <button class="btn btn-duration" data-duration="About the same">About the same</button>
+                <button class="btn btn-duration" data-duration="Little more">Little more</button>
+                <button class="btn btn-duration" data-duration="Much more">Much more</button>
               </div>
             </div>
           </div>

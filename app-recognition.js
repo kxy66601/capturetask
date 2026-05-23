@@ -44,14 +44,30 @@ async function startExperiment() {
         combinedData.push(currentRecData); // Catch any remaining
       }
 
-      // 1. Generate unique participant ID
-      const participantId = 'P-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+      // 1. Extract participant info from initial trials
+      let participantId = 'P-' + Math.random().toString(36).substr(2, 9).toUpperCase(); // fallback
+      let sessionDate = new Date().toISOString().split('T')[0]; // fallback
+      let raName = 'N/A'; // fallback
 
-      // 2. Log data to Supabase (Flat Row format)
-      document.body.innerHTML = '<div class="summary-container"><p>Saving results to database...</p></div>';
+      for (const trial of rawData) {
+        if (trial.participant_id !== undefined && trial.image_id === undefined) {
+          participantId = trial.participant_id;
+        }
+        if (trial.session_date !== undefined) {
+          sessionDate = trial.session_date;
+        }
+        if (trial.ra_name !== undefined) {
+          raName = trial.ra_name;
+        }
+      }
+
+      // 2. Log data (Flat Row format)
+      document.body.innerHTML = '<div class="summary-container"><p>Saving results...</p></div>';
 
       const flatRows = combinedData.map(item => ({
         participant_id: participantId,
+        session_date: sessionDate,
+        ra_name: raName,
         task_type: 'combined',
         image_id: item.image_id,
         recognized: item.recognized,
@@ -64,11 +80,8 @@ async function startExperiment() {
         rt_timeline: item.rt_timeline || null
       }));
 
-      // Supabase saving disabled for local mode
-      const error = null;
-
       // Create CSV Download Logic
-      const csvHeaders = ['participant_id', 'task_type', 'image_id', 'recognized', 'recognition_confidence', 'relative_duration', 'rt_recognition', 'rt_phase2', 'timeline_position_sec', 'estimated_duration_sec', 'rt_timeline'];
+      const csvHeaders = ['participant_id', 'session_date', 'ra_name', 'task_type', 'image_id', 'recognized', 'recognition_confidence', 'relative_duration', 'rt_recognition', 'rt_phase2', 'timeline_position_sec', 'estimated_duration_sec', 'rt_timeline'];
       const csvRows = [csvHeaders.join(',')];
       flatRows.forEach(row => {
         csvRows.push(csvHeaders.map(h => {
@@ -90,17 +103,14 @@ async function startExperiment() {
       // Automatically download the CSV
       window.downloadCSV();
 
-      if (error) {
-        console.error('Error saving data:', error);
-        alert('Could not save data to database. Please check console.');
-      }
-
       // 3. Show Completion Screen
       let summaryHtml = `
         <div class="summary-container">
           <h1>Tour Summary</h1>
           <p>Results saved successfully and downloaded to your computer.</p>
-          <p style="margin-bottom: 40px; font-size: 1.1rem;">Participant ID: <strong>${participantId}</strong></p>
+          <p style="margin-top: 20px; margin-bottom: 5px; font-size: 1.1rem;">Participant ID: <strong>${participantId}</strong></p>
+          <p style="margin-bottom: 5px; font-size: 1.1rem;">Date: <strong>${sessionDate}</strong></p>
+          <p style="margin-bottom: 40px; font-size: 1.1rem;">RA Name: <strong>${raName}</strong></p>
           <div style="display: flex; justify-content: center;">
             <a href="index.html" class="btn btn-secondary" style="text-decoration:none; padding: 14px 32px; border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-main);">Return to Menu</a>
           </div>
@@ -111,29 +121,153 @@ async function startExperiment() {
     }
   });
 
+  // Define initial data collection plugins
+  class ParticipantIdPlugin {
+    constructor(jsPsych) {
+      this.jsPsych = jsPsych;
+    }
+    trial(display_element, trial) {
+      display_element.innerHTML = `
+        <div class="recognition-task-container">
+          <div class="question-container" style="max-width: 500px;">
+            <h2>Enter Participant ID</h2>
+            <input type="text" id="input-field" class="btn" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text;" placeholder="e.g. P001" required>
+            <button id="next-btn" class="btn" style="min-width:120px;">Next</button>
+          </div>
+        </div>
+      `;
+      const nextBtn = display_element.querySelector('#next-btn');
+      const input = display_element.querySelector('#input-field');
+      input.focus();
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && input.value.trim() !== '') {
+          nextBtn.click();
+        }
+      });
+      nextBtn.addEventListener('click', () => {
+        const val = input.value.trim();
+        if (val === '') {
+          alert('Please enter Participant ID');
+          return;
+        }
+        display_element.innerHTML = '';
+        this.jsPsych.finishTrial({ participant_id: val });
+      });
+    }
+  }
+  ParticipantIdPlugin.info = { name: 'participant-id-input', parameters: {} };
+
+  class DatePlugin {
+    constructor(jsPsych) {
+      this.jsPsych = jsPsych;
+    }
+    trial(display_element, trial) {
+      const today = new Date().toISOString().split('T')[0];
+      display_element.innerHTML = `
+        <div class="recognition-task-container">
+          <div class="question-container" style="max-width: 500px;">
+            <h2>Select Date</h2>
+            <input type="date" id="input-field" class="btn" value="${today}" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text;" required>
+            <button id="next-btn" class="btn" style="min-width:120px;">Next</button>
+          </div>
+        </div>
+      `;
+      const nextBtn = display_element.querySelector('#next-btn');
+      const input = display_element.querySelector('#input-field');
+      input.focus();
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && input.value.trim() !== '') {
+          nextBtn.click();
+        }
+      });
+      nextBtn.addEventListener('click', () => {
+        const val = input.value.trim();
+        if (val === '') {
+          alert('Please select date');
+          return;
+        }
+        display_element.innerHTML = '';
+        this.jsPsych.finishTrial({ session_date: val });
+      });
+    }
+  }
+  DatePlugin.info = { name: 'session-date-input', parameters: {} };
+
+  class RaNamePlugin {
+    constructor(jsPsych) {
+      this.jsPsych = jsPsych;
+    }
+    trial(display_element, trial) {
+      display_element.innerHTML = `
+        <div class="recognition-task-container">
+          <div class="question-container" style="max-width: 500px;">
+            <h2>Enter RA Name</h2>
+            <input type="text" id="input-field" class="btn" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text;" placeholder="e.g. Jane Doe" required>
+            <button id="next-btn" class="btn" style="min-width:120px;">Next</button>
+          </div>
+        </div>
+      `;
+      const nextBtn = display_element.querySelector('#next-btn');
+      const input = display_element.querySelector('#input-field');
+      input.focus();
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && input.value.trim() !== '') {
+          nextBtn.click();
+        }
+      });
+      nextBtn.addEventListener('click', () => {
+        const val = input.value.trim();
+        if (val === '') {
+          alert('Please enter RA Name');
+          return;
+        }
+        display_element.innerHTML = '';
+        this.jsPsych.finishTrial({ ra_name: val });
+      });
+    }
+  }
+  RaNamePlugin.info = { name: 'ra-name-input', parameters: {} };
+
+  const participant_id_trial = {
+    type: ParticipantIdPlugin
+  };
+
+  const date_trial = {
+    type: DatePlugin
+  };
+
+  const ra_name_trial = {
+    type: RaNamePlugin
+  };
+
   // 4. Local Artworks (Replacing Supabase)
   const artworks = [
-    { id: 1, image_url: 'assets/sample-art.png', title: 'Local Art 1' },
-    { id: 2, image_url: 'assets/sample-art.png', title: 'Local Art 2' },
-    { id: 3, image_url: 'assets/sample-art.png', title: 'Local Art 3' },
-    { id: 4, image_url: 'assets/sample-art.png', title: 'Local Art 4' },
-    { id: 5, image_url: 'assets/sample-art.png', title: 'Local Art 5' }
+    { id: 1, image_url: 'assets/sample-art.png', title: 'Local Art 1', filter: 'hue-rotate(0deg)' },
+    { id: 2, image_url: 'assets/sample-art.png', title: 'Local Art 2', filter: 'hue-rotate(72deg)' },
+    { id: 3, image_url: 'assets/sample-art.png', title: 'Local Art 3', filter: 'hue-rotate(144deg)' },
+    { id: 4, image_url: 'assets/sample-art.png', title: 'Local Art 4', filter: 'hue-rotate(216deg)' },
+    { id: 5, image_url: 'assets/sample-art.png', title: 'Local Art 5', filter: 'hue-rotate(288deg)' }
   ];
 
   // Create timeline based on fetched artworks
   const mainTimeline = [];
+
+  // Add the initial pages before moving on to the task
+  mainTimeline.push(participant_id_trial, date_trial, ra_name_trial);
 
   artworks.forEach((art, index) => {
     const isLast = (index === artworks.length - 1);
 
     const recognition_trial = {
       type: jsPsychRecognitionTask,
-      image: art.image_url
+      image: art.image_url,
+      image_filter: art.filter
     };
 
     const timeline_trial = {
       type: jsPsychTimelineTask,
       image: art.image_url,
+      image_filter: art.filter,
       is_last_artwork: isLast
     };
 

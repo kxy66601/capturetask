@@ -13,14 +13,14 @@
 
     <style>
         :root {
-            --bg-gradient: radial-gradient(circle at top, #1a1a2e 0%, #050505 100%);
-            --panel-bg: rgba(30, 30, 40, 0.4);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --text-main: #f8f9fa;
-            --text-muted: #a0a0b0;
-            --accent: #8b5cf6;
-            --accent-glow: rgba(139, 92, 246, 0.4);
-            --glass-blur: blur(16px);
+            --bg-gradient: #ffffff;
+            --panel-bg: #fdfdfd;
+            --border-color: rgba(0, 0, 0, 0.08);
+            --text-main: #18181b;
+            --text-muted: #71717a;
+            --accent: #7c3aed;
+            --accent-glow: rgba(124, 58, 237, 0.15);
+            --glass-blur: none;
             --font-main: 'Outfit', sans-serif;
         }
 
@@ -49,7 +49,7 @@
         }
 
         .menu-container h1 {
-            font-size: 2.1rem;
+            font-size: 2.8rem;
             font-weight: 600;
             margin: 0 0 10px 0;
             background: linear-gradient(90deg, #8b5cf6, #3b82f6);
@@ -61,7 +61,7 @@
 
         .menu-container .subtitle {
             color: var(--text-muted);
-            font-size: 0.77rem;
+            font-size: 1.1rem;
             margin-bottom: 60px;
         }
 
@@ -83,13 +83,13 @@
             text-decoration: none;
             color: var(--text-main);
             transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
         }
 
         .task-card:hover {
             transform: translateY(-6px);
             border-color: var(--accent);
-            box-shadow: 0 16px 40px var(--accent-glow);
+            box-shadow: 0 16px 40px rgba(124, 58, 237, 0.1);
         }
 
         .task-card .card-icon {
@@ -99,13 +99,13 @@
 
         .task-card h2 {
             margin: 0 0 10px 0;
-            font-size: 0.91rem;
+            font-size: 1.4rem;
             font-weight: 500;
         }
 
         .task-card p {
             margin: 0;
-            font-size: 0.665rem;
+            font-size: 0.95rem;
             color: var(--text-muted);
             line-height: 1.5;
         }

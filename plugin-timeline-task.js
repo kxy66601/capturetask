@@ -9,6 +9,11 @@ var jsPsychTimelineTask = (function (jspsych) {
         default: undefined,
         description: 'The image to display.'
       },
+      image_filter: {
+        type: jspsych.ParameterType.STRING,
+        default: 'none',
+        description: 'CSS filter to apply to the image.'
+      },
       is_last_artwork: {
         type: jspsych.ParameterType.BOOL,
         default: false,
@@ -50,8 +55,8 @@ var jsPsychTimelineTask = (function (jspsych) {
           
           <div class="work-area single-image-work-area">
             <div class="single-art-container" id="single-art-container">
-                <div class="art-item" id="art-target" data-src="${trial.image}">
-                  <img src="${trial.image}" draggable="false">
+                <div class="art-item" id="art-target" data-src="${trial.image}" data-filter="${trial.image_filter || 'none'}">
+                  <img src="${trial.image}" draggable="false" style="filter: ${trial.image_filter || 'none'};">
                 </div>
             </div>
             
@@ -145,6 +150,7 @@ var jsPsychTimelineTask = (function (jspsych) {
         
         const img = document.createElement('img');
         img.src = sourceElem.dataset.src;
+        img.style.filter = sourceElem.dataset.filter || 'none';
         img.draggable = false;
         marker.appendChild(img);
         
