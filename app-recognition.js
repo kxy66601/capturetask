@@ -12,6 +12,7 @@ async function startExperiment() {
 
       const combinedData = [];
       let currentRecData = null;
+      let recIndex = 0;
 
       for (const trial of rawData) {
         if (trial.trial_type === 'recognition-task') {
@@ -19,6 +20,7 @@ async function startExperiment() {
             combinedData.push(currentRecData); // Push previous if there was no timeline data for it
           }
           currentRecData = {
+            artwork_index: recIndex++,
             image_id: trial.image_id,
             recognized: trial.recognized,
             recognition_confidence: trial.recognition_confidence,
@@ -61,6 +63,15 @@ async function startExperiment() {
         }
       }
 
+      // Match cued recall responses
+      for (const item of combinedData) {
+        const recallTrial = rawData.find(trial => 
+          trial.trial_type === 'cued-recall-task' && 
+          trial.artwork_index === item.artwork_index
+        );
+        item.cued_recall_response = recallTrial ? recallTrial.cued_recall_response : '';
+      }
+
       // 2. Log data (Flat Row format)
       document.body.innerHTML = '<div class="summary-container"><p>Saving results...</p></div>';
 
@@ -77,11 +88,12 @@ async function startExperiment() {
         rt_phase2: item.rt_phase2 || null,
         timeline_position_sec: item.timeline_position_sec || null,
         estimated_duration_sec: item.estimated_duration_sec || null,
-        rt_timeline: item.rt_timeline || null
+        rt_timeline: item.rt_timeline || null,
+        cued_recall_response: item.cued_recall_response || ''
       }));
 
       // Create CSV Download Logic
-      const csvHeaders = ['participant_id', 'session_date', 'ra_name', 'task_type', 'image_id', 'recognized', 'recognition_confidence', 'relative_duration', 'rt_recognition', 'rt_phase2', 'timeline_position_sec', 'estimated_duration_sec', 'rt_timeline'];
+      const csvHeaders = ['participant_id', 'session_date', 'ra_name', 'task_type', 'image_id', 'recognized', 'recognition_confidence', 'relative_duration', 'rt_recognition', 'rt_phase2', 'timeline_position_sec', 'estimated_duration_sec', 'rt_timeline', 'cued_recall_response'];
       const csvRows = [csvHeaders.join(',')];
       flatRows.forEach(row => {
         csvRows.push(csvHeaders.map(h => {
@@ -131,7 +143,7 @@ async function startExperiment() {
         <div class="recognition-task-container">
           <div class="question-container" style="max-width: 500px;">
             <h2>Enter Participant ID</h2>
-            <input type="text" id="input-field" class="btn" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text;" placeholder="e.g. P001" required>
+            <input type="text" id="input-field" class="btn" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text; font-family: var(--font-main);" placeholder="e.g. P001" required>
             <button id="next-btn" class="btn" style="min-width:120px;">Next</button>
           </div>
         </div>
@@ -167,7 +179,7 @@ async function startExperiment() {
         <div class="recognition-task-container">
           <div class="question-container" style="max-width: 500px;">
             <h2>Select Date</h2>
-            <input type="date" id="input-field" class="btn" value="${today}" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text;" required>
+            <input type="date" id="input-field" class="btn" value="${today}" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text; font-family: var(--font-main);" required>
             <button id="next-btn" class="btn" style="min-width:120px;">Next</button>
           </div>
         </div>
@@ -202,7 +214,7 @@ async function startExperiment() {
         <div class="recognition-task-container">
           <div class="question-container" style="max-width: 500px;">
             <h2>Enter RA Name</h2>
-            <input type="text" id="input-field" class="btn" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text;" placeholder="e.g. Jane Doe" required>
+            <input type="text" id="input-field" class="btn" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1.1rem; padding:10px; width:100%; text-align:center; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text; font-family: var(--font-main);" placeholder="e.g. Jane Doe" required>
             <button id="next-btn" class="btn" style="min-width:120px;">Next</button>
           </div>
         </div>
@@ -228,6 +240,71 @@ async function startExperiment() {
   }
   RaNamePlugin.info = { name: 'ra-name-input', parameters: {} };
 
+  class CompletionInstructionPlugin {
+    constructor(jsPsych) {
+      this.jsPsych = jsPsych;
+    }
+    trial(display_element, trial) {
+      display_element.innerHTML = `
+        <div class="recognition-task-container">
+          <div class="question-container" style="max-width: 600px;">
+            <h2 style="margin-bottom: 30px; font-weight: normal; line-height: 1.6;">You have now completed this task. Please press the button to move onto the next task.</h2>
+            <button id="next-btn" class="btn" style="min-width: 140px; font-weight: 600;">Next Task</button>
+          </div>
+        </div>
+      `;
+      const nextBtn = display_element.querySelector('#next-btn');
+      nextBtn.addEventListener('click', () => {
+        display_element.innerHTML = '';
+        this.jsPsych.finishTrial({});
+      });
+    }
+  }
+  CompletionInstructionPlugin.info = { name: 'completion-instruction', parameters: {} };
+
+  class CuedRecallPlugin {
+    constructor(jsPsych) {
+      this.jsPsych = jsPsych;
+    }
+    trial(display_element, trial) {
+      display_element.innerHTML = `
+        <div class="recognition-task-container">
+          <div class="artwork-display" style="max-height: 45vh; max-width: 700px; margin-bottom: 20px;">
+            <img src="${trial.image}" id="recognition-image" draggable="false" style="filter: ${trial.image_filter}; max-height: 45vh;">
+          </div>
+          <div class="interaction-area">
+            <div class="question-container" style="max-width: 700px; text-align: left;">
+              <h2 style="font-size: 1.1rem; line-height: 1.4; margin-bottom: 20px;">What do you remember about this specific artwork?</h2>
+              <textarea id="recall-input" class="btn" style="background:#ffffff; border: 1px solid var(--border-color); color:var(--text-main); font-size:1rem; padding:12px; width:100%; height:120px; box-sizing:border-box; margin-bottom:20px; box-shadow: none; cursor: text; resize: none; text-align: left; font-family: var(--font-main);" placeholder="Type your response here..." required></textarea>
+              <div style="display: flex; justify-content: center;">
+                <button id="next-btn" class="btn" style="min-width:140px; font-weight: 600;">Submit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      const nextBtn = display_element.querySelector('#next-btn');
+      const input = display_element.querySelector('#recall-input');
+      input.focus();
+      
+      nextBtn.addEventListener('click', () => {
+        const response = input.value.trim();
+        if (response === '') {
+          alert('Please write what you remember about this artwork.');
+          input.focus();
+          return;
+        }
+        display_element.innerHTML = '';
+        this.jsPsych.finishTrial({
+          image_id: trial.image,
+          artwork_index: trial.artwork_index,
+          cued_recall_response: response
+        });
+      });
+    }
+  }
+  CuedRecallPlugin.info = { name: 'cued-recall-task', parameters: {} };
+
   const participant_id_trial = {
     type: ParticipantIdPlugin
   };
@@ -238,6 +315,10 @@ async function startExperiment() {
 
   const ra_name_trial = {
     type: RaNamePlugin
+  };
+
+  const completion_instruction_trial = {
+    type: CompletionInstructionPlugin
   };
 
   // 4. Local Artworks (Replacing Supabase)
@@ -284,6 +365,31 @@ async function startExperiment() {
     };
 
     mainTimeline.push(recognition_trial, if_node);
+  });
+
+  // Now, add the completion instruction page!
+  mainTimeline.push(completion_instruction_trial);
+
+  // Now, add the conditional cued recall trials for each artwork!
+  artworks.forEach((art, index) => {
+    const recall_trial = {
+      type: CuedRecallPlugin,
+      image: art.image_url,
+      image_filter: art.filter,
+      artwork_index: index
+    };
+
+    const conditional_recall_node = {
+      timeline: [recall_trial],
+      conditional_function: function() {
+        // Find if this artwork was recognized (i.e. definitely yes or maybe yes)
+        const recTrials = jsPsych.data.get().filter({ trial_type: 'recognition-task' }).values();
+        const artData = recTrials[index];
+        return !!(artData && artData.recognized);
+      }
+    };
+
+    mainTimeline.push(conditional_recall_node);
   });
 
   // Start the experiment
