@@ -189,7 +189,8 @@ var jsPsychTimelineTask = (function (jspsych) {
         image_id: this.trial.image,
         timeline_position_sec: null,
         estimated_duration_sec: null,
-        rt_timeline: null
+        rt_timeline: null,
+        rt_recognition: null
       };
 
       this.placedItems.forEach((val) => {
@@ -198,6 +199,7 @@ var jsPsychTimelineTask = (function (jspsych) {
         responseData.timeline_position_sec = val.timeSec;
         responseData.estimated_duration_sec = val.durationSec;
         responseData.rt_timeline = this.firstDropRt || Math.round(performance.now() - this.startTime);
+        responseData.rt_recognition = this.firstDropRt || Math.round(performance.now() - this.startTime);
       });
 
       // Clear DOM

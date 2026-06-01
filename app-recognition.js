@@ -11,40 +11,28 @@ async function startExperiment() {
       const rawData = jsPsych.data.get().values();
 
       const combinedData = [];
-      let currentRecData = null;
-      let recIndex = 0;
+      artworks.forEach((art, index) => {
+        // Find recognition and timeline trials for this artwork
+        const artTrials = rawData.filter(t => t.image_id === art.image_url);
+        const confTrial = artTrials.find(t => t.trial_type === 'recognition-task' && t.recognition_confidence !== null);
+        const durTrial = artTrials.find(t => t.trial_type === 'recognition-task' && t.relative_duration !== null);
+        const timeTrial = artTrials.find(t => t.trial_type === 'timeline-task');
 
-      for (const trial of rawData) {
-        if (trial.trial_type === 'recognition-task') {
-          if (currentRecData) {
-            combinedData.push(currentRecData); // Push previous if there was no timeline data for it
-          }
-          currentRecData = {
-            artwork_index: recIndex++,
-            image_id: trial.image_id,
-            recognized: trial.recognized,
-            recognition_confidence: trial.recognition_confidence,
-            relative_duration: trial.relative_duration,
-            rt_recognition: trial.rt_recognition,
-            rt_phase2: trial.rt_phase2
-          };
-          if (!trial.recognized) {
-            combinedData.push(currentRecData);
-            currentRecData = null;
-          }
-        } else if (trial.trial_type === 'timeline-task') {
-          if (currentRecData && trial.timeline_position_sec !== undefined) {
-            currentRecData.timeline_position_sec = trial.timeline_position_sec;
-            currentRecData.estimated_duration_sec = trial.estimated_duration_sec;
-            currentRecData.rt_timeline = trial.rt_timeline;
-            combinedData.push(currentRecData);
-            currentRecData = null;
-          }
-        }
-      }
-      if (currentRecData) {
-        combinedData.push(currentRecData); // Catch any remaining
-      }
+        const recognized = confTrial ? confTrial.recognized : false;
+
+        combinedData.push({
+          artwork_index: index,
+          image_id: art.image_url,
+          recognized: recognized,
+          recognition_confidence: confTrial ? confTrial.recognition_confidence : null,
+          relative_duration: durTrial ? durTrial.relative_duration : null,
+          rt_recognition: confTrial ? confTrial.rt_recognition : null,
+          rt_phase2: durTrial ? durTrial.rt_recognition : null, // rt_recognition contains the RT of the duration trial
+          timeline_position_sec: timeTrial ? timeTrial.timeline_position_sec : null,
+          estimated_duration_sec: timeTrial ? timeTrial.estimated_duration_sec : null,
+          rt_timeline: timeTrial ? timeTrial.rt_recognition : null // rt_recognition contains the RT of the timeline trial
+        });
+      });
 
       // 1. Extract participant info from initial trials
       let participantId = 'P-' + Math.random().toString(36).substr(2, 9).toUpperCase(); // fallback
@@ -341,10 +329,18 @@ async function startExperiment() {
   artworks.forEach((art, index) => {
     const isLast = (index === artworks.length - 1);
 
-    const recognition_trial = {
+    const recognition_confidence_trial = {
       type: jsPsychRecognitionTask,
       image: art.image_url,
-      image_filter: art.filter
+      image_filter: art.filter,
+      phase: 'confidence'
+    };
+
+    const relative_duration_trial = {
+      type: jsPsychRecognitionTask,
+      image: art.image_url,
+      image_filter: art.filter,
+      phase: 'duration'
     };
 
     const timeline_trial = {
@@ -355,7 +351,7 @@ async function startExperiment() {
     };
 
     const if_node = {
-      timeline: [timeline_trial],
+      timeline: [relative_duration_trial, timeline_trial],
       conditional_function: function () {
         const lastData = jsPsych.data.get().last(1).values()[0];
         if (lastData && lastData.recognized) {
@@ -366,7 +362,7 @@ async function startExperiment() {
       }
     };
 
-    mainTimeline.push(recognition_trial, if_node);
+    mainTimeline.push(recognition_confidence_trial, if_node);
   });
 
   // Now, add the completion instruction page!
@@ -384,10 +380,10 @@ async function startExperiment() {
     const conditional_recall_node = {
       timeline: [recall_trial],
       conditional_function: function() {
-        // Find if this artwork was recognized (i.e. definitely yes or maybe yes)
-        const recTrials = jsPsych.data.get().filter({ trial_type: 'recognition-task' }).values();
-        const artData = recTrials[index];
-        return !!(artData && artData.recognized);
+        // Find if this specific artwork was recognized by filtering by image_id
+        const artTrials = jsPsych.data.get().filter({ image_id: art.image_url, trial_type: 'recognition-task' }).values();
+        const recognizedTrial = artTrials.find(t => t.recognized === true);
+        return !!recognizedTrial;
       }
     };
 
