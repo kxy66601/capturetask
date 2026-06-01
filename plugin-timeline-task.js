@@ -182,23 +182,29 @@ var jsPsychTimelineTask = (function (jspsych) {
 
     endTrial() {
       // Gather data
-      let responseData = null;
+      let responseData = {
+        stimulus: this.trial.image,
+        response: null,
+        rt: Math.round(performance.now() - this.startTime),
+        image_id: this.trial.image,
+        timeline_position_sec: null,
+        estimated_duration_sec: null,
+        rt_timeline: null
+      };
+
       this.placedItems.forEach((val) => {
-        responseData = {
-          image_id: val.id,
-          timeline_position_sec: val.timeSec,
-          estimated_duration_sec: val.durationSec,
-          rt_timeline: this.firstDropRt || Math.round(performance.now() - this.startTime)
-        };
+        responseData.response = val.timeSec;
+        responseData.image_id = val.id;
+        responseData.timeline_position_sec = val.timeSec;
+        responseData.estimated_duration_sec = val.durationSec;
+        responseData.rt_timeline = this.firstDropRt || Math.round(performance.now() - this.startTime);
       });
 
       // Clear DOM
       this.jsPsych.getDisplayElement().innerHTML = '';
 
       // Return data
-      this.jsPsych.finishTrial({
-        timeline_data: responseData
-      });
+      this.jsPsych.finishTrial(responseData);
     }
   }
 

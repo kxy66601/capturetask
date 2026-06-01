@@ -33,10 +33,10 @@ async function startExperiment() {
             currentRecData = null;
           }
         } else if (trial.trial_type === 'timeline-task') {
-          if (currentRecData && trial.timeline_data) {
-            currentRecData.timeline_position_sec = trial.timeline_data.timeline_position_sec;
-            currentRecData.estimated_duration_sec = trial.timeline_data.estimated_duration_sec;
-            currentRecData.rt_timeline = trial.timeline_data.rt_timeline;
+          if (currentRecData && trial.timeline_position_sec !== undefined) {
+            currentRecData.timeline_position_sec = trial.timeline_position_sec;
+            currentRecData.estimated_duration_sec = trial.estimated_duration_sec;
+            currentRecData.rt_timeline = trial.rt_timeline;
             combinedData.push(currentRecData);
             currentRecData = null;
           }
@@ -75,41 +75,16 @@ async function startExperiment() {
       // 2. Log data (Flat Row format)
       document.body.innerHTML = '<div class="summary-container"><p>Saving results...</p></div>';
 
-      const flatRows = combinedData.map(item => ({
+      // Add metadata to every single trial so they are on every row of the CSV!
+      jsPsych.data.addProperties({
         participant_id: participantId,
         session_date: sessionDate,
-        ra_name: raName,
-        task_type: 'combined',
-        image_id: item.image_id,
-        recognized: item.recognized,
-        recognition_confidence: item.recognition_confidence || null,
-        relative_duration: item.relative_duration || null,
-        rt_recognition: item.rt_recognition || null,
-        rt_phase2: item.rt_phase2 || null,
-        timeline_position_sec: item.timeline_position_sec || null,
-        estimated_duration_sec: item.estimated_duration_sec || null,
-        rt_timeline: item.rt_timeline || null,
-        cued_recall_response: item.cued_recall_response || ''
-      }));
+        ra_name: raName
+      });
 
       // Create CSV Download Logic
-      const csvHeaders = ['participant_id', 'session_date', 'ra_name', 'task_type', 'image_id', 'recognized', 'recognition_confidence', 'relative_duration', 'rt_recognition', 'rt_phase2', 'timeline_position_sec', 'estimated_duration_sec', 'rt_timeline', 'cued_recall_response'];
-      const csvRows = [csvHeaders.join(',')];
-      flatRows.forEach(row => {
-        csvRows.push(csvHeaders.map(h => {
-          let val = row[h];
-          return (val === null || val === undefined) ? '' : val;
-        }).join(','));
-      });
-      const csvString = csvRows.join('\n');
-
       window.downloadCSV = function () {
-        const blob = new Blob([csvString], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.setAttribute('href', url);
-        a.setAttribute('download', participantId + '_capture_data.csv');
-        a.click();
+        jsPsych.data.get().localSave('csv', participantId + '_capture_data.csv');
       };
 
       // Automatically download the CSV
@@ -139,6 +114,7 @@ async function startExperiment() {
       this.jsPsych = jsPsych;
     }
     trial(display_element, trial) {
+      const startTime = performance.now();
       display_element.innerHTML = `
         <div class="recognition-task-container">
           <div class="question-container" style="max-width: 500px;">
@@ -163,7 +139,12 @@ async function startExperiment() {
           return;
         }
         display_element.innerHTML = '';
-        this.jsPsych.finishTrial({ participant_id: val });
+        this.jsPsych.finishTrial({
+          participant_id: val,
+          stimulus: "Enter Participant ID",
+          response: val,
+          rt: Math.round(performance.now() - startTime)
+        });
       });
     }
   }
@@ -174,6 +155,7 @@ async function startExperiment() {
       this.jsPsych = jsPsych;
     }
     trial(display_element, trial) {
+      const startTime = performance.now();
       const today = new Date().toISOString().split('T')[0];
       display_element.innerHTML = `
         <div class="recognition-task-container">
@@ -199,7 +181,12 @@ async function startExperiment() {
           return;
         }
         display_element.innerHTML = '';
-        this.jsPsych.finishTrial({ session_date: val });
+        this.jsPsych.finishTrial({
+          session_date: val,
+          stimulus: "Select Date",
+          response: val,
+          rt: Math.round(performance.now() - startTime)
+        });
       });
     }
   }
@@ -210,6 +197,7 @@ async function startExperiment() {
       this.jsPsych = jsPsych;
     }
     trial(display_element, trial) {
+      const startTime = performance.now();
       display_element.innerHTML = `
         <div class="recognition-task-container">
           <div class="question-container" style="max-width: 500px;">
@@ -234,7 +222,12 @@ async function startExperiment() {
           return;
         }
         display_element.innerHTML = '';
-        this.jsPsych.finishTrial({ ra_name: val });
+        this.jsPsych.finishTrial({
+          ra_name: val,
+          stimulus: "Enter RA Name",
+          response: val,
+          rt: Math.round(performance.now() - startTime)
+        });
       });
     }
   }
@@ -245,6 +238,7 @@ async function startExperiment() {
       this.jsPsych = jsPsych;
     }
     trial(display_element, trial) {
+      const startTime = performance.now();
       display_element.innerHTML = `
         <div class="recognition-task-container">
           <div class="question-container" style="max-width: 600px;">
@@ -256,7 +250,11 @@ async function startExperiment() {
       const nextBtn = display_element.querySelector('#next-btn');
       nextBtn.addEventListener('click', () => {
         display_element.innerHTML = '';
-        this.jsPsych.finishTrial({});
+        this.jsPsych.finishTrial({
+          stimulus: "You have now completed this task. Please press the button to move onto the next task.",
+          response: "Next Task",
+          rt: Math.round(performance.now() - startTime)
+        });
       });
     }
   }
@@ -267,6 +265,7 @@ async function startExperiment() {
       this.jsPsych = jsPsych;
     }
     trial(display_element, trial) {
+      const startTime = performance.now();
       display_element.innerHTML = `
         <div class="recognition-task-container">
           <div class="artwork-display" style="max-height: 45vh; max-width: 700px; margin-bottom: 20px;">
@@ -296,6 +295,9 @@ async function startExperiment() {
         }
         display_element.innerHTML = '';
         this.jsPsych.finishTrial({
+          stimulus: trial.image,
+          response: response,
+          rt: Math.round(performance.now() - startTime),
           image_id: trial.image,
           artwork_index: trial.artwork_index,
           cued_recall_response: response

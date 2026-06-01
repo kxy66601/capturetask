@@ -109,6 +109,9 @@ var jsPsychRecognitionTask = (function (jspsych) {
     endTrial(recognized, confidence, duration, rt_recognition, rt_phase2) {
       // Gather data
       const responseData = {
+        stimulus: this.trial.image,
+        response: confidence,
+        rt: Math.round(performance.now() - this.startTime),
         image_id: this.trial.image,
         recognized: recognized,
         recognition_confidence: confidence,
