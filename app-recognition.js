@@ -2,6 +2,34 @@
  * Version 2: Successive Recognition Task (with Supabase Integration)
  */
 
+// --- CONFIGURATION: IMAGE LURE/TARGET LOOKUP TABLE ---
+// Define whether each artwork is actually in the exhibition (true) or is a lure (false).
+// Once you gather all your images, you can map them by their image URL/filename.
+const IMAGE_EXHIBITION_STATUS = {
+  // You can match by image URL/filename:
+  'assets/sample-art.png': true,
+  
+  // For local testing (since they share the same URL), we match by artwork ID:
+  'id-1': true,  // Local Art 1 (Target)
+  'id-2': false, // Local Art 2 (Lure)
+  'id-3': true,  // Local Art 3 (Target)
+  'id-4': false, // Local Art 4 (Lure)
+  'id-5': true   // Local Art 5 (Target)
+};
+
+function isExhibitionArtwork(art) {
+  if (!art) return false;
+  // 1. Try matching by specific ID first
+  if (IMAGE_EXHIBITION_STATUS[`id-${art.id}`] !== undefined) {
+    return IMAGE_EXHIBITION_STATUS[`id-${art.id}`];
+  }
+  // 2. Try matching by image URL/filename
+  if (IMAGE_EXHIBITION_STATUS[art.image_url] !== undefined) {
+    return IMAGE_EXHIBITION_STATUS[art.image_url];
+  }
+  return true; // Default fallback
+}
+
 async function startExperiment() {
   const jsPsych = initJsPsych({
     on_finish: async function () {
@@ -13,10 +41,9 @@ async function startExperiment() {
       const combinedData = [];
       artworks.forEach((art, index) => {
         // Find recognition and timeline trials for this artwork
-        const artTrials = rawData.filter(t => t.image_id === art.image_url);
-        const confTrial = artTrials.find(t => t.trial_type === 'recognition-task' && t.recognition_confidence !== null);
-        const durTrial = artTrials.find(t => t.trial_type === 'recognition-task' && t.relative_duration !== null);
-        const timeTrial = artTrials.find(t => t.trial_type === 'timeline-task');
+        const confTrial = rawData.find(t => t.trial_type === 'recognition-task' && t.recognition_confidence !== null && t.artwork_index === index);
+        const durTrial = rawData.find(t => t.trial_type === 'recognition-task' && t.relative_duration !== null && t.artwork_index === index);
+        const timeTrial = rawData.find(t => t.trial_type === 'timeline-task' && t.artwork_index === index);
 
         const recognized = confTrial ? confTrial.recognized : false;
 
@@ -27,10 +54,10 @@ async function startExperiment() {
           recognition_confidence: confTrial ? confTrial.recognition_confidence : null,
           relative_duration: durTrial ? durTrial.relative_duration : null,
           rt_recognition: confTrial ? confTrial.rt_recognition : null,
-          rt_phase2: durTrial ? durTrial.rt_recognition : null, // rt_recognition contains the RT of the duration trial
+          rt_phase2: durTrial ? durTrial.rt_recognition : null,
           timeline_position_sec: timeTrial ? timeTrial.timeline_position_sec : null,
           estimated_duration_sec: timeTrial ? timeTrial.estimated_duration_sec : null,
-          rt_timeline: timeTrial ? timeTrial.rt_recognition : null // rt_recognition contains the RT of the timeline trial
+          rt_timeline: timeTrial ? timeTrial.rt_recognition : null
         });
       });
 
@@ -40,7 +67,7 @@ async function startExperiment() {
       let raName = 'N/A'; // fallback
 
       for (const trial of rawData) {
-        if (trial.participant_id !== undefined && trial.image_id === undefined) {
+        if (trial.participant_id !== undefined && trial.artwork_index === undefined) {
           participantId = trial.participant_id;
         }
         if (trial.session_date !== undefined) {
@@ -72,7 +99,174 @@ async function startExperiment() {
 
       // Create CSV Download Logic
       window.downloadCSV = function () {
-        jsPsych.data.get().localSave('csv', participantId + '_capture_data.csv');
+        const rawData = jsPsych.data.get().values();
+        const formattedRows = [];
+        let indexCounter = 0;
+
+        rawData.forEach((trial) => {
+          const hasArtIndex = trial.artwork_index !== undefined && trial.artwork_index !== null;
+          const art = hasArtIndex ? artworks[trial.artwork_index] : null;
+          const isTarget = art ? isExhibitionArtwork(art) : null;
+          const image_type = art ? (isTarget ? 'TRUE' : 'FALSE') : null;
+
+          let correct = null;
+          if (art) {
+            const recognizedTrialForArt = rawData.find(t => 
+              t.trial_type === 'recognition-task' && 
+              t.recognition_confidence !== null && 
+              t.artwork_index === trial.artwork_index
+            );
+            if (recognizedTrialForArt) {
+              correct = (recognizedTrialForArt.recognized === isTarget) ? 'TRUE' : 'FALSE';
+            }
+          }
+
+          if (trial.trial_type === 'participant-id-input' || 
+              trial.trial_type === 'session-date-input' || 
+              trial.trial_type === 'ra-name-input' ||
+              trial.trial_type === 'completion-instruction') {
+            
+            // Keep setup/instruction trials as a single row
+            formattedRows.push({
+              ...trial,
+              trial_index: indexCounter++
+            });
+
+          } else if (trial.trial_type === 'recognition-task') {
+            if (trial.recognition_confidence !== null && trial.recognition_confidence !== undefined) {
+              // 1. Begin Row
+              formattedRows.push({
+                participant_id: participantId,
+                session_date: sessionDate,
+                ra_name: raName,
+                trial_type: 'Recognition_begin',
+                trial_index: indexCounter++,
+                time_elapsed: trial.time_elapsed - trial.rt,
+                rt: null,
+                stimulus: trial.stimulus,
+                image_id: trial.image_id,
+                image_type: image_type,
+                correct: correct,
+                internal_node_id: trial.internal_node_id
+              });
+              // 2. Response Row
+              formattedRows.push({
+                ...trial,
+                trial_type: 'Recognition_response',
+                trial_index: indexCounter++,
+                image_type: image_type,
+                correct: correct
+              });
+            } else if (trial.relative_duration !== null && trial.relative_duration !== undefined) {
+              // 1. Begin Row
+              formattedRows.push({
+                participant_id: participantId,
+                session_date: sessionDate,
+                ra_name: raName,
+                trial_type: 'Duration_begin',
+                trial_index: indexCounter++,
+                time_elapsed: trial.time_elapsed - trial.rt,
+                rt: null,
+                stimulus: trial.stimulus,
+                image_id: trial.image_id,
+                image_type: image_type,
+                correct: correct,
+                internal_node_id: trial.internal_node_id
+              });
+              // 2. Response Row
+              formattedRows.push({
+                ...trial,
+                trial_type: 'Duration_response',
+                trial_index: indexCounter++,
+                image_type: image_type,
+                correct: correct
+              });
+            }
+          } else if (trial.trial_type === 'timeline-task') {
+            // 1. Begin Row
+            formattedRows.push({
+              participant_id: participantId,
+              session_date: sessionDate,
+              ra_name: raName,
+              trial_type: 'Timeline_begin',
+              trial_index: indexCounter++,
+              time_elapsed: trial.time_elapsed - trial.rt,
+              rt: null,
+              stimulus: trial.stimulus,
+              image_id: trial.image_id,
+              image_type: image_type,
+              correct: correct,
+              internal_node_id: trial.internal_node_id
+            });
+            // 2. Response Row
+            formattedRows.push({
+              ...trial,
+              trial_type: 'Timeline_response',
+              trial_index: indexCounter++,
+              image_type: image_type,
+              correct: correct
+            });
+          } else if (trial.trial_type === 'cued-recall-task') {
+            // 1. Begin Row
+            formattedRows.push({
+              participant_id: participantId,
+              session_date: sessionDate,
+              ra_name: raName,
+              trial_type: 'cuedRecall_begin',
+              trial_index: indexCounter++,
+              time_elapsed: trial.time_elapsed - trial.rt,
+              rt: null,
+              stimulus: trial.stimulus,
+              image_id: trial.image_id,
+              image_type: image_type,
+              correct: correct,
+              artwork_index: trial.artwork_index,
+              internal_node_id: trial.internal_node_id
+            });
+            // 2. Response Row
+            formattedRows.push({
+              ...trial,
+              trial_type: 'cuedRecall_response',
+              trial_index: indexCounter++,
+              image_type: image_type,
+              correct: correct
+            });
+          }
+        });
+
+        // Convert formattedRows to CSV
+        const headers = [
+          'trial_index', 'trial_type', 'time_elapsed', 'rt', 'stimulus', 'response',
+          'participant_id', 'session_date', 'ra_name', 'image_id', 'image_type',
+          'recognized', 'correct', 'recognition_confidence', 'relative_duration',
+          'rt_recognition', 'rt_phase2', 'timeline_position_sec', 'estimated_duration_sec',
+          'rt_timeline', 'artwork_index', 'cued_recall_response'
+        ];
+
+        let csvContent = headers.join(',') + '\n';
+        formattedRows.forEach(row => {
+          let rowValues = headers.map(header => {
+            let val = row[header];
+            if (val === undefined || val === null) {
+              return '';
+            }
+            let valString = String(val).replace(/"/g, '""');
+            if (valString.includes(',') || valString.includes('"') || valString.includes('\n')) {
+              return `"${valString}"`;
+            }
+            return valString;
+          });
+          csvContent += rowValues.join(',') + '\n';
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", participantId + '_capture_data.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       };
 
       // Automatically download the CSV
@@ -313,11 +507,11 @@ async function startExperiment() {
 
   // 4. Local Artworks (Replacing Supabase)
   const artworks = [
-    { id: 1, image_url: 'assets/sample-art.png', title: 'Local Art 1', filter: 'hue-rotate(0deg)' },
-    { id: 2, image_url: 'assets/sample-art.png', title: 'Local Art 2', filter: 'hue-rotate(72deg)' },
-    { id: 3, image_url: 'assets/sample-art.png', title: 'Local Art 3', filter: 'hue-rotate(144deg)' },
-    { id: 4, image_url: 'assets/sample-art.png', title: 'Local Art 4', filter: 'hue-rotate(216deg)' },
-    { id: 5, image_url: 'assets/sample-art.png', title: 'Local Art 5', filter: 'hue-rotate(288deg)' }
+    { id: 1, image_url: 'assets/sample-art.png', title: 'Local Art 1', filter: 'hue-rotate(0deg)', image_type: true },
+    { id: 2, image_url: 'assets/sample-art.png', title: 'Local Art 2', filter: 'hue-rotate(72deg)', image_type: false },
+    { id: 3, image_url: 'assets/sample-art.png', title: 'Local Art 3', filter: 'hue-rotate(144deg)', image_type: true },
+    { id: 4, image_url: 'assets/sample-art.png', title: 'Local Art 4', filter: 'hue-rotate(216deg)', image_type: false },
+    { id: 5, image_url: 'assets/sample-art.png', title: 'Local Art 5', filter: 'hue-rotate(288deg)', image_type: true }
   ];
 
   // Create timeline based on fetched artworks
@@ -333,21 +527,30 @@ async function startExperiment() {
       type: jsPsychRecognitionTask,
       image: art.image_url,
       image_filter: art.filter,
-      phase: 'confidence'
+      phase: 'confidence',
+      data: {
+        artwork_index: index
+      }
     };
 
     const relative_duration_trial = {
       type: jsPsychRecognitionTask,
       image: art.image_url,
       image_filter: art.filter,
-      phase: 'duration'
+      phase: 'duration',
+      data: {
+        artwork_index: index
+      }
     };
 
     const timeline_trial = {
       type: jsPsychTimelineTask,
       image: art.image_url,
       image_filter: art.filter,
-      is_last_artwork: isLast
+      is_last_artwork: isLast,
+      data: {
+        artwork_index: index
+      }
     };
 
     const if_node = {
